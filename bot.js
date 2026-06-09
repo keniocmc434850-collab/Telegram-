@@ -1,16 +1,13 @@
+// Sử dụng thư viện phiên bản phổ thông ổn định nhất
 const { Telegraf } = require('telegraf');
 const { GoogleGenAI } = require('@google/genai');
 const http = require('http');
 
-// ==========================================
-// KẾT NỐI BẢO MẬT QUA BIẾN MÔI TRƯỜNG (DÙNG ĐỂ QUA MẶT GITHUB)
-// ==========================================
-const bot = new Telegraf(process.env.TELEGRAM_TOKEN); 
+// Kết nối token bảo mật thông qua biến môi trường để GitHub không chặn
+const bot = new Telegraf(process.env.TELEGRAM_TOKEN);
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
-// ==========================================
-// BỘ NÃO AI: DỮ LIỆU TẬP TIN BẢNG GIÁ VÀ LOGIC
-// ==========================================
+// Dữ liệu bảng giá và cấu hình não bộ cho AI
 const SYSTEM_INSTRUCTION = `
 Bạn là trợ lý bán hàng tự động tên là KENIOS, sở hữu tư duy logic cao, giao tiếp tự nhiên, thân thiện và chuyên nghiệp như người thật. 
 Nhiệm vụ của bạn là đọc tin nhắn của khách hàng, phân tích nhu cầu của họ và trích xuất dữ liệu chính xác từ bảng giá dưới đây để trả lời đúng trọng tâm.
@@ -45,72 +42,48 @@ HỆ THỐNG LIÊN HỆ & GIAO DỊCH:
 - 🏦 Tài khoản thanh toán: Ngân hàng TPBANK | STK: 44413438888 | Chủ TK: TRẦN MINH CHIẾN
 
 QUY TẮC PHẢN HỒI BẮT BUỘC:
-1. Trả lời đúng trọng tâm câu hỏi, không suy nghĩ dài dòng:
-   - Nếu khách chỉ hỏi về "android" hoặc "adr", CHỈ lọc ra danh sách của Android.
-   - Nếu khách chỉ hỏi về "ios", CHỈ lọc ra danh sách của iOS.
-   - Nếu khách hỏi về "pubg" nói chung, liệt kê ngắn gọn cả hai nền tảng iOS và Android.
-   - Nếu khách hỏi về "liên quân" hoặc "lq", trả về bảng giá Liên Quân.
-2. Văn phong tự nhiên, sử dụng emoji khéo léo để tạo sự thân thiện, luôn lễ phép (dạ, vâng) hoặc xưng hô (anh em) giống người thật, có câu chào mở đầu và cảm ơn ở cuối.
-3. Khi khách hỏi mua hoặc hỏi số tài khoản giao dịch, gửi kèm thông tin mua Key tự động hoặc Số tài khoản ngân hàng TPBank của TRẦN MINH CHIẾN để họ tiện chuyển khoản.
-4. Tuyệt đối không trả lời những câu hỏi ngoài lề không liên quan đến sản phẩm và trò chơi của shop.
+1. Trả lời đúng trọng tâm câu hỏi, không suy nghĩ dài dòng.
+2. Văn phong tự nhiên, sử dụng emoji khéo léo để tạo sự thân thiện, luôn lễ phép (dạ, vâng) hoặc xưng hô (anh em) giống người thật.
+3. Khi khách hỏi mua hoặc hỏi số tài khoản giao dịch, gửi kèm thông tin mua Key tự động hoặc Số tài khoản ngân hàng TPBank của TRẦN MINH CHIẾN.
+4. Tuyệt đối không trả lời những câu hỏi ngoài lề không liên quan đến sản phẩm của shop.
 `;
 
-// ==========================================
-// QUY TRÌNH VẬN HÀNH BOT TELEGRAM
-// ==========================================
-
-// Khi khách hàng nhấn lệnh /start hoặc bắt đầu chat lần đầu
+// Khi khách bấm khởi động Bot lần đầu
 bot.start((ctx) => {
-    ctx.reply(
-        `👋 Chào mừng anh em đã đến với KENIOS HAX GAME!\n\n` +
-        `Mình là trợ lý ảo phục vụ tự động 24/7. Anh em cần tư vấn bảng giá PUBG iOS, Android, Liên Quân hay lấy số tài khoản thanh toán thì cứ nhắn trực tiếp vào đây nhé! Chúc anh em một ngày vui vẻ.`
-    );
+    ctx.reply("👋 Chào mừng anh em đã đến với KENIOS HAX GAME!\nMình là trợ lý ảo phục vụ tự động 24/7. Anh em cần tư vấn bảng giá hay lấy số tài khoản thanh toán thì cứ nhắn trực tiếp vào đây nhé!");
 });
 
-// Lắng nghe và xử lý toàn bộ hội thoại từ khách hàng
+// Xử lý chat tự động thông qua AI Gemini
 bot.on('text', async (ctx) => {
-    const userMessage = ctx.message.text;
-
     try {
-        // Tạo hiệu ứng "bot đang gõ..." cho giống người thật
         await ctx.sendChatAction('typing');
-
-        // Gọi API Gemini xử lý dữ liệu với model tối ưu nhất
         const response = await ai.models.generateContent({
             model: 'gemini-2.5-flash',
-            contents: userMessage,
-            config: {
-                systemInstruction: SYSTEM_INSTRUCTION
-            }
+            contents: ctx.message.text,
+            config: { systemInstruction: SYSTEM_INSTRUCTION }
         });
-
-        // Trả lời khách hàng dạng text thuần (Tránh lỗi vỡ định dạng ký tự làm crash sập bot)
         await ctx.reply(response.text);
-
     } catch (error) {
-        console.error("Lỗi hệ thống AI:", error);
-        await ctx.reply("Dạ hệ thống đang bận xử lý dữ liệu một chút, anh vui lòng đợi vài giây rồi nhắn lại giúp em nhé!");
+        console.error("Lỗi kết nối AI:", error);
+        await ctx.reply("Dạ hệ thống bận một chút, anh nhắn lại sau vài giây nhé!");
     }
 });
 
-// Kích hoạt bot Telegram
+// Chạy Bot
 bot.launch().then(() => {
-    console.log('🚀 Bot Trợ Lý AI KENIOS đang hoạt động ổn định...');
+    console.log('🚀 Bot đang hoạt động...');
 }).catch((err) => {
-    console.error('Lỗi khởi chạy Telegram:', err);
+    console.error('Lỗi khởi chạy:', err);
 });
 
-// ==========================================
-// WEB SERVER BIND PORT GIỮ SỐNG BOT CHO RENDER (SỬA LỖI TIMEOUT)
-// ==========================================
+// Tạo Web Server để Render không bị báo lỗi ngắt kết nối (Timeout)
 const PORT = process.env.PORT || 3000;
 http.createServer((req, res) => {
     res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('KENIOS Bot is running 24/7\n');
+    res.end('Bot is Active\n');
 }).listen(PORT, () => {
-    console.log(`Web server giữ live đang chạy tại port ${PORT}`);
+    console.log(`Web server đang chạy tại port ${PORT}`);
 });
 
-// Ngắt bot an toàn khi bảo trì hoặc tắt server
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
