@@ -1,6 +1,7 @@
 {
   "name": "kenios-bot-ai",
   "version": "1.0.0",
+  "description": "Bot AI ban hang",
   "main": "bot.js",
   "scripts": {
     "start": "node bot.js"
